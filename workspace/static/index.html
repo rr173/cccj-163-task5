@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>高精地图瓦片 · 分区发布与路线快照控制台</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">▦</span>
+    <div>
+      <h1>高精地图瓦片 · 分区发布与路线快照</h1>
+      <div class="sub">接缝校验 → 区域代际发布 → 路线快照固定 → 紧急补丁安全过渡</div>
+    </div>
+  </div>
+  <div class="version-box">
+    <div class="vlabel">当前有效版本</div>
+    <div id="currentVersion" class="vcode">—</div>
+    <div id="activePatches" class="patches"></div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="review" class="tab active">🗺️ 地图审查</button>
+  <button data-tab="patches" class="tab">🚨 封路补丁</button>
+  <button data-tab="routes" class="tab">🚗 路线复现</button>
+  <button data-tab="rollouts" class="tab">🧪 分组试运行</button>
+  <button data-tab="mirror" class="tab">📦 镜像分发</button>
+  <button data-tab="audit" class="tab">⚖ 时序审计</button>
+  <span class="spacer"></span>
+  <button id="refreshBtn" class="ghost">↻ 刷新</button>
+</nav>
+
+<main>
+  <!-- ===================== REVIEW ===================== -->
+  <section id="tab-review" class="tabpane active">
+    <div class="grid2">
+      <div class="panel">
+        <h2>区域发布状态（按区域代际）</h2>
+        <table id="regionTable" class="data"></table>
+      </div>
+      <div class="panel">
+        <h2>发布候选 <span class="hint">来自地图编辑器，校验通过后方可发布</span></h2>
+        <div id="candidateList" class="cardlist"></div>
+        <div class="viewbar">
+          地图视图：
+          <button id="viewPublished" class="chip active">当前发布版本</button>
+          <span id="viewCandidateChip" class="chip" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>拓扑视图 <span id="viewLabel" class="hint"></span></h2>
+        <div class="legend">
+          <span><i class="sq lane"></i>车道</span>
+          <span><i class="sq closed"></i>补丁封闭</span>
+          <span><i class="dot seam-ok"></i>接缝匹配</span>
+          <span><i class="dot seam-bad"></i>接缝异常</span>
+          <span><i class="sq corr"></i>跨区走廊</span>
+          <span><i class="sq route"></i>快照路线</span>
+          <label class="switch"><input type="checkbox" id="toggleCorridors" checked/>显示走廊</label>
+          <label class="switch"><input type="checkbox" id="toggleLabels" checked/>标注</label>
+        </div>
+        <div class="mapwrap">
+          <svg id="map" viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>校验报告</h2>
+        <div id="validationReport" class="report"></div>
+        <h2 style="margin-top:18px">发布历史</h2>
+        <div id="releaseList" class="timeline"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PATCHES ===================== -->
+  <section id="tab-patches" class="tabpane">
+    <div class="grid2">
+      <div class="panel">
+        <h2>新建紧急封路补丁</h2>
+        <p class="hint">补丁是<strong>纯规则叠加</strong>（封闭既有车道），固化基础版本哈希，
+          不允许增删几何/车道；启用前须确认封闭后仍存在节点间绕行。</p>
+        <label>目标瓦片
+          <select id="patchTile"></select>
+        </label>
+        <div class="lanechecks" id="patchLanes"></div>
+        <label>封路原因
+          <input id="patchReason" placeholder="如：K12+300 事故临时管制" value="前方事故临时管制"/>
+        </label>
+        <label>优先级（数字越大越优先）
+          <input id="patchPriority" type="number" value="100"/>
+        </label>
+        <button id="createPatchBtn" class="primary">① 生成补丁（自动做兼容性/绕行校验）</button>
+        <div id="patchCompat" class="report"></div>
+      </div>
+      <div class="panel">
+        <h2>补丁队列</h2>
+        <div id="patchList" class="cardlist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROUTES ===================== -->
+  <section id="tab-routes" class="tabpane">
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>请求路线（固定瓦片集合快照）</h2>
+        <div class="routeform">
+          <label>车辆 <select id="vehicleSelect"></select></label>
+          <label>起点 <select id="fromNode"></select></label>
+          <label>终点 <select id="toNode"></select></label>
+          <button id="planBtn" class="primary">生成路线快照</button>
+        </div>
+        <h2 style="margin-top:16px">在途模拟</h2>
+        <div id="tripPanel" class="trip">选择一个快照后在此模拟车辆行进。</div>
+        <div id="advisoryPanel" class="advisory"></div>
+        <h2 style="margin-top:16px">离线追赶</h2>
+        <div class="syncbox">
+          <span class="hint">车辆离线期间版本可能变化；重连后回放全部错过事件，当前版本始终单一可解释。</span>
+          <button id="syncBtn" class="ghost">以最后确认事件号重连同步</button>
+          <div id="syncResult" class="report"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>快照清单</h2>
+        <div id="snapshotList" class="cardlist"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ===================== ROLLOUTS ===================== -->
+  <section id="tab-rollouts" class="tabpane">
+    <div class="audit-banner">
+      <b>🧪 区域变更的车辆分组试运行。</b>
+      从<strong>校验通过</strong>的候选创建批次：名单内车辆的新行程使用待晋级内容，
+      名单外继续读取当前发布内容。任一区域同一时间只允许一个进行中批次；
+      晋级/撤回一次性生效且重复操作返回首次结果；撤回不改写已发出的行程快照、不倒退区域代际。
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>① 创建试运行批次</h2>
+        <label>候选（仅列校验通过且未发布）
+          <select id="rolloutCandidate"></select>
+        </label>
+        <label>作用区域（须为候选区域的子集，逗号分隔）
+          <input id="rolloutRegions" placeholder="如 north"/>
+        </label>
+        <label>对象名单（车辆 ID，逗号分隔）
+          <input id="rolloutVehicles" placeholder="如 VH-01,VH-03"/>
+        </label>
+        <label>观察窗口（分钟；留空表示不限）
+          <input id="rolloutWindow" type="number" min="1" placeholder="如 60"/>
+        </label>
+        <label>阈值：试运行组不可达次数上限（超过则禁止晋级）
+          <input id="rolloutMaxUnreach" type="number" min="0" placeholder="留空不设限"/>
+        </label>
+        <label>阈值：安全过渡拒绝上限
+          <input id="rolloutMaxReject" type="number" min="0" placeholder="留空不设限"/>
+        </label>
+        <button id="createRolloutBtn" class="primary">创建批次（冲突区域将被拒绝）</button>
+        <div id="rolloutCreateResult" class="report" style="margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <h2>② 批次监控 <span class="hint">各组请求量 / 不可达 / 安全过渡拒绝</span></h2>
+        <div id="rolloutList" class="cardlist" style="max-height:560px"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ===================== MIRROR ===================== -->
+  <section id="tab-mirror" class="tabpane">
+    <div class="audit-banner">
+      <b>📦 面向路侧计算盒的地图镜像仓库。</b>
+      发布人员选定<strong>已生效快照</strong>（当前生效版本或已固定行程快照）与设备集合，
+      生成<strong>不可变清单</strong>；设备代理拉取压缩对象块，逐块校验散列、整包复核根散列后暂存。
+      断网可续拉、已确认块不重复计数；同一盒子只允许一个待切换镜像，较老代次或坏对象
+      不能覆盖当前镜像；全部对象验真后才原子换指针。本页与设备命令行
+      <code>mirror_cli.py</code> 读写同一数据源（data/mirror.json），绝不改动地图中心状态与行程快照。
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>① 生成不可变清单并分发</h2>
+        <label>内容来源（已生效快照）
+          <select id="mirrorSource"></select>
+        </label>
+        <label>设备集合（路侧盒编号，逗号分隔）
+          <input id="mirrorDevices" value="RSU-01,RSU-02"/>
+        </label>
+        <label>备注
+          <input id="mirrorNote" placeholder="如：晚高峰前全量推送"/>
+        </label>
+        <button id="mirrorPublishBtn" class="primary">生成清单并分发（重试返回首次任务）</button>
+        <div id="mirrorPublishResult" class="report" style="margin-top:8px"></div>
+        <h2 style="margin-top:16px">清单仓库 <span class="hint">内容寻址 · 不可变</span></h2>
+        <div id="manifestList" class="cardlist"></div>
+      </div>
+      <div class="panel">
+        <h2>② 路侧计算盒 <span class="hint">当前镜像 / 待切换任务（与设备 CLI 同一数据源）</span></h2>
+        <div id="deviceList" class="cardlist" style="max-height:560px"></div>
+      </div>
+    </div>
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>③ 分发任务 <span class="hint">进度与拒绝理由</span></h2>
+        <div id="mirrorTaskList" class="cardlist" style="max-height:420px"></div>
+      </div>
+      <div class="panel">
+        <h2>镜像仓库事件（append-only）</h2>
+        <div id="mirrorEvents" class="events" style="max-height:420px"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ===================== AUDIT ===================== -->
+  <section id="tab-audit" class="tabpane">
+    <div class="audit-banner">
+      <b>⚖ 面向监管审计的只读时序证据查询。</b>
+      查询 / 分支 / 导出只会在审计档案（data/audit.json）中追加记录，
+      绝不改变线上代际、车辆当前记录或原有事件链。
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>① 导入车辆运行事件 <span class="hint">序号 · 来源 · 摘要校验 · 父链</span></h2>
+        <div class="audit-import">
+          <div class="audit-actions">
+            <button id="auditGenBtn" class="ghost">从线上车辆快照链签名（只读）</button>
+            <select id="auditGenVehicle"></select>
+            <button id="auditGenTemplateBtn" class="ghost">按当前线上版本生成样例链</button>
+          </div>
+          <label>导入键 import_key（同一键永远返回首次判定）
+            <input id="auditImportKey" placeholder="如 EV-VH-01-20261003"/></label>
+          <label>事件 JSON（可粘贴运维提供的已签名事件数组）
+            <textarea id="auditEvents" rows="7"
+              placeholder='[{"seq":1,"ts":...,"source":"ops/...","type":"route_pinned","payload":{...},"parent_digest":null,"digest":"sha256:..."}]'></textarea>
+          </label>
+          <div class="audit-actions">
+            <button id="auditImportBtn" class="primary">导入并判定</button>
+            <button id="auditAppendBtn" class="ghost">从头部检查点续算</button>
+          </div>
+          <div id="auditImportResult" class="report"></div>
+        </div>
+        <h2 style="margin-top:16px">审计档案（append-only）</h2>
+        <div id="auditArchives" class="audit-archives"></div>
+      </div>
+      <div class="panel">
+        <h2>已导入证据链</h2>
+        <div id="auditImportList" class="cardlist"></div>
+        <div id="auditImportDetail" class="report" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>② 指定时刻的空间状态重建 <span id="auditViewLabel" class="hint"></span></h2>
+        <div class="audit-actions">
+          <label style="margin:0">证据链 <select id="auditSel"></select></label>
+          <label style="margin:0">按事件序号
+            <input id="auditSeq" type="number" min="1" style="width:90px" placeholder="seq"/></label>
+          <button id="auditQueryBtn" class="primary">重建该时刻</button>
+          <button id="auditConfirmBtn" class="ghost">✓ 确认当前序号为检查点</button>
+        </div>
+        <div id="auditStatePanel" class="audit-state">
+          <span class="hint">选择证据链并输入事件序号后重建。</span>
+        </div>
+        <div class="mapwrap" style="margin-top:12px">
+          <svg id="auditMap" viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>③ 从已确认检查点建立隔离分支</h2>
+        <p class="hint">每个分支只演算一次假设：版本切换 或 撤销一条道路管制；
+          演算结果只写入审计档案。</p>
+        <label>检查点序号
+          <input id="auditBranchSeq" type="number" min="1" placeholder="已确认的 seq"/></label>
+        <div class="audit-actions">
+          <label style="margin:0">版本切换 →
+            <select id="auditReleaseSel"></select></label>
+          <button id="auditSwitchBtn" class="ghost">演算版本切换</button>
+        </div>
+        <div class="audit-actions">
+          <label style="margin:0">撤销管制
+            <input id="auditPatchInput" placeholder="如 P-0001" style="width:120px"/></label>
+          <button id="auditRevokeBtn" class="ghost">演算撤销管制</button>
+        </div>
+        <div id="auditBranchResult" class="report"></div>
+        <h2 style="margin-top:14px">本证据链的分支</h2>
+        <div id="auditBranchList" class="cardlist"></div>
+        <h2 style="margin-top:14px">④ 导出审计档案</h2>
+        <button id="auditExportBtn" class="primary">导出证据包（事件+检查点+分支）</button>
+        <div id="auditExportResult" class="report" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <details>
+    <summary>审计事件日志（append-only）</summary>
+    <div id="eventLog" class="events"></div>
+  </details>
+</footer>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
