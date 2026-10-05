@@ -2,8 +2,9 @@
 
 零第三方依赖（Python 3.11 标准库 + 原生 HTML/JS），实现"地图编辑 → 接缝/跨区路线验证
 → 按区域代际发布 → 车辆路线快照固定 → 紧急补丁安全过渡 → 离线追赶"的完整闭环，
-并附带两个物理隔离的子系统：**监管时序审计**（只读线上）与
-**路侧计算盒地图镜像仓库**（不可变清单 → 压缩块拉取 → 验真暂存 → 原子换指针）。
+并附带三个物理隔离的子系统：**监管时序审计**（只读线上）、
+**路侧计算盒地图镜像仓库**（不可变清单 → 压缩块拉取 → 验真暂存 → 原子换指针）与
+**容量感知预热编排**（站点共享带宽/盒内空间/内容复用约束下的赤字轮询调度）。
 
 ## 启动
 
@@ -14,8 +15,10 @@ python3 server.py 8080          # 打开 http://localhost:8080
 首次启动会自动生成演示世界并落盘到 `data/mapstate.json`（原子写）。
 首次使用审计功能会自动创建独立的 `data/audit.json`（append-only）。
 首次使用镜像分发会自动创建独立的 `data/mirror.json`（原子写）。
+首次使用预热编排会自动创建独立的 `data/preheat.json`（原子写）。
 删除 `data/` 即可重置。命令行工具 `route_replay.py` / `audit_cli.py` / `mirror_cli.py`
-直接读写各自存储，无需开服务（`audit_cli.py` 与 `mirror_cli.py` 对线上存储只读）。
+/ `preheat_cli.py` 直接读写各自存储，无需开服务（`audit_cli.py` 与 `mirror_cli.py`
+对线上存储只读；`preheat_cli.py` 使用完全独立的存储）。
 
 ## 领域模型与不变量
 
@@ -158,6 +161,10 @@ python3 server.py 8080          # 打开 http://localhost:8080
   指定事件序号（或时刻）的空间状态——版本描述、瓦片摘要、行驶步骤、当前位置；
   从已确认检查点一键隔离演算"版本切换"或"撤销道路管制"；导出审计证据包。
   查询/分支/导出只追加审计档案，绝不改动线上。
+- **🔥 预热编排**：提交多盒预热批次（截止/速率上限/最小在线保障/权重/幂等键）；
+  实时显示虚拟时钟、站点共享带宽占用、盒内已用/预留/容量与链路状态、全局排队次序、
+  逐副本进度条、DRR 欠账与统一限速原因、ETA；一键暂停/恢复/取消、盒子离线/恢复/
+  链路降级、手动推进时钟。与 `preheat_cli.py` 同源，存储独立，绝不影响地图与快照。
 
 ## CLI：route_replay.py
 
@@ -198,6 +205,61 @@ python3 server.py 8080          # 打开 http://localhost:8080
 一键镜像演示：`bash demo_mirror.sh`（重置存储后走完整竞争/断网/损坏/切换流程）。
 自动化校验：`python3 test_mirror.py`（不可变清单/逐块与根散列验真/断网续拉幂等/
 单待切换镜像/较老代次与坏对象拒绝/原子换指针/重启恢复/同源隔离）。
+
+## 容量感知预热 CLI：preheat_cli.py（独立存储 data/preheat.json）
+
+为大量路侧盒做容量感知的预热编排。调度员为一批目标盒设置**截止时间、链路速率上限、
+最小在线保障**，编排器按**站点共享带宽、盒内可用空间、内容复用率**安排传输。
+
+```bash
+./preheat_cli.py dashboard                       # 时钟/站点/盒子/排队总览
+./preheat_cli.py submit RSU-N1,RSU-N2 BL-MAP-MEDIA,BL-MAP-LANE \
+                 40 15728640 2097152 2 "晚高峰预热"   # 目标盒,内容,截止s,速率上限,最小保障,权重,名称
+./preheat_cli.py submit RSU-N3 BL-MAP-PATCH - - - 1 "补丁" --key K1   # 幂等键重试返回首次结果
+./preheat_cli.py submit RSU-S1 BL-MAP-MEDIA - 20971520 - 1 "再次提交" --resubmit JH-0003
+./preheat_cli.py jobs · queue · show JH-0001     # 同一排队次序/限速原因/ETA
+./preheat_cli.py quota JH-0001 --deadline 60 --rate-cap 10485760 --min-online 1048576 --weight 2
+./preheat_cli.py pause JH-0001 · resume JH-0001 · cancel JH-0001 "原因"
+./preheat_cli.py offline RSU-N3 · online RSU-N3 · degrade RSU-N2 3145728
+./preheat_cli.py tick 10 · events · invariants · sites · boxes [RSU-N1] · blobs
+```
+
+一键演示：`bash demo_preheat.sh`；自动化校验：`python3 test_preheat.py`。
+
+### 预热编排的不变量
+
+- **三维容量约束**：站点所有副本每 tick 分配的 WAN 速率之和绝不超过站点共享上行；
+  每盒"已落地字节 + 在途偏移 + 全部在队预留"绝不超过盒内容量；站点缓存命中的内容
+  走 LAN（`CACHE_FAST`）且不计入 WAN 名额，WAN 落地后的对象自动进入站点缓存供复用。
+- **磁盘预留与传输名额成对取得/释放**：准入时整批原子（一盒空间不足整批拒绝，不留任何
+  占用）；每 tick 先**全局释放再按排队次序重新协商**预留，有名额必有预留、有预留必有在队
+  副本。空间不足（`BOX_SPACE_WAIT`）、链路降级、盒子离线、取消作业或服务崩溃都不留下幽灵
+  占用——预留是从持久化的逐对象接收偏移**推导**出来的，重启即重建。
+- **饿死免疫**：先给每个在线副本"最小在线保障"（floor），余量按**加权赤字轮询 DRR**
+  （`QUANTUM×weight` 信用，赤字跨 tick 持久化）分配；排队键为
+  `截止紧迫度 → 累计赤字/挨饿 tick → FIFO`，持续推进的作业信用只增不减，必被服务。
+- **只补剩余**：每个对象持久化接收字节偏移；暂停恢复、盒子离线恢复、取消后再次提交、
+  服务崩溃重启都从断点续传。取消会把在途偏移固化到盒内 `partial`，再次提交继承断点；
+  已落地内容在同站点/同盒复用，重复对象零传输。
+- **确定性**：修改配额、暂停/恢复、取消都是单把提交锁内的原子操作，取消/终结判定一次
+  （重复返回首次结果），终结作业禁止改配额；相同 `idempotency_key` 返回首次作业；
+  再次提交（`resubmit_of`）只允许针对已终结作业，在途作业返回 `PREHEAT_RESUBMIT_CONFLICT`。
+- **重启重建**：虚拟时钟、队列次序、DRR 欠账、挨饿计数、在途偏移、剩余时长全部落盘
+  `data/preheat.json`（原子写）；重启后队列、欠账与 ETA 完整恢复。
+- **物理隔离**：预热引擎从不导入/读写地图、镜像、审计引擎及其存储；编排过程绝不影响
+  已生效地图与行程快照。网页与 `preheat_cli.py` 读写同一存储，排队次序、限速原因码
+  （`REASON_CN`）与预计完成时间完全一致。
+- **限速原因码**：`RATE_CAP`（作业速率上限）、`FLOOR_CAP`（仅拿到最小保障）、
+  `SITE_CONTENTION`（站点拥塞 DRR 排队）、`BOX_OFFLINE`、`LINK_DEGRADED`、
+  `BOX_SPACE_WAIT`、`JOB_PAUSED`、`DEADLINE_MISSED`（超时标记后继续尽力传输，不抢占在保障作业）。
+
+### 预热 API（前缀 `/api/preheat`，独立存储）
+
+`GET /dashboard · /jobs · /jobs/{id} · /sites · /boxes · /boxes/{id} · /blobs · /events`；
+`POST /jobs · /jobs/{id}/quota · /jobs/{id}/pause|resume|cancel · /sites · /blobs · /boxes ·
+/boxes/{id}/online · /boxes/{id}/degrade · /tick · /invariants`。
+首次启动自动播种 3 站点 / 8 盒 / 5 内容对象（ST-N 预缓存底图）；HTTP 服务后台每秒推进
+1 个虚拟秒，CLI/测试可显式 `tick`，调度本身完全确定。
 
 ## 监管审计 CLI：audit_cli.py（只读线上）
 
@@ -243,16 +305,20 @@ mirror.py          路侧盒镜像引擎：不可变清单/压缩块/验真暂�
 mirror_cli.py      镜像分发 CLI（发布 + 设备代理拉取/确认/切换）
 audit.py           监管审计引擎：证据链导入/时序重建/检查点/隔离分支/导出（只读线上）
 audit_cli.py       审计 CLI（导入/查询/检查点/分支/导出）
+preheat.py         预热编排引擎：站点共享带宽/盒内空间/内容复用 + floor+DRR 赤字轮询
+preheat_cli.py     预热编排 CLI（提交/配额/暂停恢复取消/离线降级/tick，与网页同源）
 test_mirror.py     镜像仓库端到端校验（验真/续拉/竞争/原子切换/重启/隔离）
 test_audit.py      审计需求端到端校验（可重复运行）
 test_rollout.py    分组试运行端到端校验（分流/统计/冲突/幂等/原子性/重启恢复）
 demo_mirror.sh     镜像分发一键演示
+demo_preheat.sh    容量感知预热编排一键演示
 demo_audit.sh      审计功能一键演示
 demo_rollout.sh    分组试运行一键演示
-static/            审查页（index.html / app.js / styles.css，含 🧪 分组试运行、📦 镜像分发 与 ⚖ 时序审计 标签页）
-data/mapstate.json 线上单一事实源（原子落盘；审计与镜像从不写入）
+static/            审查页（index.html / app.js / styles.css，含 🧪 分组试运行、📦 镜像分发、🔥 预热编排 与 ⚖ 时序审计 标签页）
+data/mapstate.json 线上单一事实源（原子落盘；审计、镜像与预热从不写入）
 data/audit.json    审计 append-only 存储（imports/checkpoints/branches/exports/archives）
 data/mirror.json   镜像仓库存储（manifests/chunk_store/tasks/devices/events）
+data/preheat.json  预热编排存储（clock/sites/boxes/blobs/jobs/events，原子落盘）
 ```
 
 ## 镜像子系统的隔离不变量

@@ -12,6 +12,7 @@ const state = {
   fullSnapshot: null,
   audit: { imports: [], selected: null, state: null, branch: null,
            options: null, map: null, querying: false, mode: "state" },
+  preheat: null,
 };
 
 async function api(path, opts = {}) {
@@ -1037,6 +1038,160 @@ async function refreshAudit() {
   await Promise.all([loadAuditImports(), loadAuditArchives(), loadAuditOptions()]);
 }
 
+// ============================================================== preheat ====
+const PH_STATUS_CN = { queued: "排队中", running: "传输中", paused: "已暂停",
+  blocked: "等空间", offline: "盒离线", complete: "已完成",
+  failed: "已失败", canceled: "已取消" };
+const PH_BADGE = { queued: "b-proposed", running: "b-active", paused: "b-draft",
+  blocked: "b-revoked", offline: "b-rejected", complete: "b-completed",
+  failed: "b-rejected", canceled: "b-superseded" };
+const phMiB = n => (n / 1048576).toFixed(1);
+
+async function loadPreheat() {
+  const [d, ev] = await Promise.all([
+    api("/preheat/dashboard"), api("/preheat/events?limit=40")]);
+  state.preheat = d;
+  renderPreheat(d, ev.events);
+}
+
+function renderPreheat(d, events) {
+  $("#phClock").textContent = `t=${d.clock}s`;
+  $("#phSites").innerHTML = d.sites.map(s => {
+    const pct = Math.min(100, 100 * s.granted_bps / (s.uplink_bps || 1));
+    return `<div class="ph-site"><b>${esc(s.site_id)}</b> ${esc(s.name)}
+      <div class="ph-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <span class="hint">${phMiB(s.granted_bps)}/${phMiB(s.uplink_bps)} MiB/s
+      · 缓存 ${phMiB(s.cache_hit_bytes)} MiB</span></div>`;
+  }).join("");
+
+  $("#phBoxes").innerHTML = d.boxes.map(b => {
+    const pct = 100 * (b.used_bytes + b.reserved_bytes) / b.capacity_bytes;
+    const degr = b.effective_link_bps < b.link_bps ? " <b class='warn'>(降级)</b>" : "";
+    return `<div class="ph-box ${b.online ? "" : "off"}">
+      <div class="ph-box-h"><b>${esc(b.box_id)}</b> @${esc(b.site_id)}
+        <span class="badge ${b.online ? "b-completed" : "b-rejected"}">${b.online ? "在线" : "离线"}</span>
+      </div>
+      <div class="ph-bar disk ${pct > 90 ? "full" : ""}"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>
+      <div class="hint">用 ${phMiB(b.used_bytes)} + 预留 ${phMiB(b.reserved_bytes)}
+        / ${phMiB(b.capacity_bytes)} MiB（空 ${phMiB(b.free_bytes)}）</div>
+      <div class="hint">链路 ${phMiB(b.effective_link_bps)}/${phMiB(b.link_bps)} MiB/s${degr}
+        · 已存 ${b.stored.length}${Object.keys(b.partial_bytes || {}).length ?
+          ` · 在途 ${Object.keys(b.partial_bytes).length}` : ""}</div>
+      <div class="ph-box-actions">
+        <button data-act="offline" ${b.online ? "" : "disabled"}>离线</button>
+        <button data-act="online" ${b.online ? "disabled" : ""}>恢复在线</button>
+        <button data-act="degrade">限速 3MiB/s</button>
+        <button data-act="heal">链路复原</button>
+      </div></div>`;
+  }).join("");
+
+  const live = d.jobs.filter(j => !["complete", "canceled", "failed"].includes(j.status));
+  live.sort((a, b) => (a.queue_rank || 999) - (b.queue_rank || 999));
+  $("#phQueue").innerHTML = live.length ? live.map(j => {
+    const dl = j.deadline_ticks ? `<span class="ph-dl ${j.missed_deadline ? "missed" : ""}">
+      截止+${j.deadline_ticks}s${j.missed_deadline ? "（已超时）" : ""}</span>` : "";
+    const eta = j.eta_ticks === null ? `<span class="hint">ETA 待定</span>` :
+      `<span class="ph-eta">ETA t=${j.eta_clock}（剩 ${j.eta_ticks}s）</span>`;
+    const reps = j.replicas.filter(r => !["complete", "canceled"].includes(r.status))
+      .map(r => `<div class="ph-rep">
+        <span class="ph-rep-h">${esc(r.box_id)}
+          <span class="badge ${PH_BADGE[r.status] || "b-draft"}">${PH_STATUS_CN[r.status] || r.status}</span>
+          ${r.online ? "" : '<span class="warn">离线</span>'}</span>
+        <div class="ph-bar"><i style="width:${r.percent}%"></i></div>
+        <div class="hint">${r.percent}% · WAN ${phMiB(r.allocated_bps)} MiB/s
+          + 缓存 ${phMiB(r.cache_bps || 0)} · 欠账 ${phMiB(r.deficit)} ·
+          剩 ${phMiB(r.remaining_bytes)} MiB</div>
+        <div class="ph-reason">限速原因：${esc(r.reason_cn)}</div>
+      </div>`).join("");
+    return `<div class="ph-job" data-job="${j.job_id}">
+      <div class="ph-job-h">
+        <span class="ph-rank">#${j.queue_rank || "-"}</span>
+        <b>${j.job_id}</b> ${esc(j.name)}
+        <span class="badge ${PH_BADGE[j.status] || "b-draft"}">${PH_STATUS_CN[j.status] || j.status}</span>
+        <span class="hint">${j.percent}% (${phMiB(j.done_bytes)}/${phMiB(j.total_bytes)} MiB;
+          复用 ${phMiB(j.cache_bytes)})</span>${dl}${eta}
+        <span class="spacer"></span>
+        <button data-act="pause" ${j.status === "paused" ? "disabled" : ""}>暂停</button>
+        <button data-act="resume" ${j.status === "paused" ? "" : "disabled"}>恢复</button>
+        <button data-act="cancel">取消</button>
+      </div>${reps}</div>`;
+  }).join("") : '<div class="hint" style="padding:10px">（当前无在队作业）</div>';
+
+  $("#phEvents").innerHTML = events.map(e =>
+    `<div class="ev"><span class="ev-ts">t=${e.tick}</span>
+      <span class="ev-type">${esc(e.type)}</span> ${esc(e.summary)}</div>`).join("");
+}
+
+$("#phBoxes")?.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest("button");
+  const card = ev.target.closest(".ph-box");
+  if (!btn || !card) return;
+  const bid = card.querySelector(".ph-box-h b").textContent.trim();
+  try {
+    if (btn.dataset.act === "offline") await api(`/preheat/boxes/${bid}/online`,
+      { method: "POST", body: { online: false } });
+    if (btn.dataset.act === "online") await api(`/preheat/boxes/${bid}/online`,
+      { method: "POST", body: { online: true } });
+    if (btn.dataset.act === "degrade") await api(`/preheat/boxes/${bid}/degrade`,
+      { method: "POST", body: { bps: 3 * 1048576 } });
+    if (btn.dataset.act === "heal") await api(`/preheat/boxes/${bid}/degrade`,
+      { method: "POST", body: { bps: 0 } });
+    await loadPreheat();
+  } catch (e) { showError(e); }
+});
+
+$("#phQueue")?.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest("button");
+  const card = ev.target.closest(".ph-job");
+  if (!btn || !card) return;
+  const jid = card.dataset.job;
+  try {
+    if (btn.dataset.act === "pause") await api(`/preheat/jobs/${jid}/pause`, { method: "POST" });
+    if (btn.dataset.act === "resume") await api(`/preheat/jobs/${jid}/resume`, { method: "POST" });
+    if (btn.dataset.act === "cancel") {
+      await api(`/preheat/jobs/${jid}/cancel`, { method: "POST", body: { reason: "网页取消" } });
+    }
+    await loadPreheat();
+  } catch (e) { showError(e); }
+});
+
+$("#phSubmitBtn")?.addEventListener("click", async () => {
+  const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
+  const body = {
+    name: $("#phName").value || "预热作业",
+    targets: $("#phTargets").value.split(",").map(x => x.trim()).filter(Boolean),
+    blobs: $("#phBlobs").value.split(",").map(x => x.trim()).filter(Boolean),
+    deadline_ticks: num("#phDeadline"),
+    rate_cap_bps: num("#phRateCap"),
+    min_online_bps: num("#phMinOnline") ?? 0,
+    weight: num("#phWeight") || 1,
+  };
+  if ($("#phKey").value.trim()) body.idempotency_key = $("#phKey").value.trim();
+  try {
+    const r = await api("/preheat/jobs", { method: "POST", body });
+    const j = r.job;
+    $("#phSubmitResult").innerHTML =
+      `<div class="ok-item">✓ 批次 <b>${j.job_id}</b> 已${r.idempotent ? "（重复提交，返回首次结果）" : ""}准入：
+       WAN ${phMiB(j.wan_bytes)} MiB / 复用 ${phMiB(j.cache_bytes)} MiB。
+       磁盘预留与传输名额已成对取得。</div>`;
+    toast(`✓ 作业 ${j.job_id} 已提交`, "ok");
+    await loadPreheat();
+  } catch (e) {
+    $("#phSubmitResult").innerHTML =
+      `<div class="err-item"><span class="err-code">[${e.code}]</span> ${esc(e.message)}
+       ${e.details?.planned ? "<pre>" + JSON.stringify(e.details.planned, null, 1) + "</pre>" : ""}
+       </div>`;
+    showError(e);
+  }
+});
+
+async function phTick(n) {
+  try { await api("/preheat/tick", { method: "POST", body: { n } }); await loadPreheat(); }
+  catch (e) { showError(e); }
+}
+$("#phTickBtn")?.addEventListener("click", () => phTick(1));
+$("#phTick10Btn")?.addEventListener("click", () => phTick(10));
+
 // --------------------------------------------------------------- tabs ------
 function switchTab(name) {
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
@@ -1055,6 +1210,9 @@ function switchTab(name) {
   }
   if (name === "mirror") {
     loadMirror().catch(showError);
+  }
+  if (name === "preheat") {
+    loadPreheat().catch(showError);
   }
 }
 $$(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));

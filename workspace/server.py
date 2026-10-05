@@ -48,6 +48,20 @@ Regulatory audit (read-only over live state; appends only to data/audit.json):
   GET  /api/audit/branches/{id}
   GET|POST /api/audit/exports
   GET  /api/audit/archives
+
+Capacity-aware pre-warm orchestration (fully isolated; own store data/preheat.json):
+  GET  /api/preheat/dashboard         GET /api/preheat/jobs
+  GET  /api/preheat/jobs/{id}
+  POST /api/preheat/jobs              (submit batch; idempotency_key/resubmit_of)
+  POST /api/preheat/jobs/{id}/quota   (deadline/rate cap/floor/weight edit)
+  POST /api/preheat/jobs/{id}/pause   /resume  /cancel
+  GET  /api/preheat/sites  /boxes  /blobs
+  POST /api/preheat/sites             POST /api/preheat/blobs
+  POST /api/preheat/boxes             POST /api/preheat/boxes/{id}/online
+  POST /api/preheat/boxes/{id}/degrade
+  POST /api/preheat/tick              (advance virtual clock {n: seconds})
+  GET  /api/preheat/events
+  POST /api/preheat/invariants        (self-audit: no ghost / no over-book)
 Static UI served at /
 """
 
@@ -63,17 +77,22 @@ from urllib.parse import urlparse, parse_qs
 from engine import DomainError, MapEngine, short
 from audit import AuditEngine
 from mirror import MirrorEngine
+from preheat import PreheatEngine
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mapstate.json")
 AUDIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "audit.json")
 MIRROR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mirror.json")
+PREHEAT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "preheat.json")
 
 ENGINE = MapEngine(DATA_PATH)
 # audit subsystem: separate append-only store; ENGINE is only ever read by it
 AUDIT = AuditEngine(AUDIT_PATH, ENGINE)
 # mirror subsystem: roadside-box image distribution; ENGINE is only ever read
 MIRROR = MirrorEngine(MIRROR_PATH, ENGINE)
+# pre-warm orchestration: fully isolated subsystem (its own store; it never
+# reads or writes the map/mirror/audit state)
+PREHEAT = PreheatEngine(PREHEAT_PATH)
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -228,6 +247,42 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(MIRROR.run_agent(
                 m.group(1), body.get("stop_after"), body.get("corrupt_chunk")))
 
+        # -------- capacity-aware pre-warm orchestration (isolated store) -----
+        if path == "/api/preheat/jobs":
+            r = PREHEAT.submit_job(body)
+            return self._send_json(r, 200 if r.get("idempotent") else 201)
+        m = re.match(r"^/api/preheat/jobs/([^/]+)/(quota|pause|resume|cancel)$", path)
+        if m:
+            jid, action = m.group(1), m.group(2)
+            if action == "quota":
+                return self._send_json(PREHEAT.update_quota(jid, body))
+            if action == "pause":
+                return self._send_json(PREHEAT.pause_job(jid))
+            if action == "resume":
+                return self._send_json(PREHEAT.resume_job(jid))
+            return self._send_json(PREHEAT.cancel_job(
+                jid, body.get("reason", "")))
+        if path == "/api/preheat/sites":
+            return self._send_json(PREHEAT.upsert_site(body), 201)
+        if path == "/api/preheat/boxes":
+            return self._send_json(PREHEAT.upsert_box(body), 201)
+        m = re.match(r"^/api/preheat/boxes/([^/]+)/(online|degrade)$", path)
+        if m:
+            bid, action = m.group(1), m.group(2)
+            if action == "online":
+                return self._send_json(PREHEAT.set_box_online(
+                    bid, bool(body.get("online", True)),
+                    body.get("degraded_bps")))
+            return self._send_json(PREHEAT.degrade_box_link(
+                bid, int(body.get("bps", 0))))
+        if path == "/api/preheat/blobs":
+            r = PREHEAT.register_blob(body)
+            return self._send_json(r, 200 if r.get("idempotent") else 201)
+        if path == "/api/preheat/tick":
+            return self._send_json(PREHEAT.tick(int(body.get("n", 1))))
+        if path == "/api/preheat/invariants":
+            return self._send_json(PREHEAT.assert_invariants())
+
         table = {
             "/api/candidates": lambda: self._send_json(ENGINE.list_candidates()),
             "/api/patches": lambda: self._send_json(ENGINE.create_patch(body)),
@@ -308,6 +363,27 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"events": MIRROR.list_events(
                 int(q.get("limit", ["80"])[0]))})
 
+        # -------- capacity-aware pre-warm orchestration (same store as CLI) --
+        if path == "/api/preheat/dashboard":
+            return self._send_json(PREHEAT.dashboard())
+        m = re.match(r"^/api/preheat/jobs/([^/]+)$", path)
+        if m:
+            return self._send_json(PREHEAT.get_job(m.group(1)))
+        if path == "/api/preheat/jobs":
+            return self._send_json({"jobs": PREHEAT.list_jobs()})
+        if path == "/api/preheat/sites":
+            return self._send_json({"sites": PREHEAT.list_sites()})
+        if path == "/api/preheat/boxes":
+            return self._send_json({"boxes": PREHEAT.list_boxes()})
+        m = re.match(r"^/api/preheat/boxes/([^/]+)$", path)
+        if m:
+            return self._send_json(PREHEAT.get_box(m.group(1)))
+        if path == "/api/preheat/blobs":
+            return self._send_json({"blobs": PREHEAT.list_blobs()})
+        if path == "/api/preheat/events":
+            return self._send_json({"events": PREHEAT.list_events(
+                int(q.get("limit", ["80"])[0]))})
+
         table = {
             "/api/status": lambda: self._send_json(ENGINE.region_status()),
             "/api/events": lambda: self._send_json(
@@ -365,7 +441,24 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+def _preheat_ticker(interval: float = 1.0):
+    """Advance the pre-warm virtual clock one second per wall second.
+
+    The schedule itself is fully deterministic inside PreheatEngine.tick;
+    this thread only drives the clock for the live demo. The CLI and tests
+    tick explicitly against the same store, so all surfaces stay consistent.
+    """
+    import time
+    while True:
+        time.sleep(interval)
+        try:
+            PREHEAT.tick(1)
+        except Exception as e:  # a tick failure must never kill the service
+            print(f"[preheat tick] {e!r}")
+
+
 def main(host: str = "0.0.0.0", port: int = 8080):
+    threading.Thread(target=_preheat_ticker, daemon=True).start()
     httpd = ThreadingHTTPServer((host, port), Handler)
     print(f"HD-map tile service on http://{host}:{port}  (data: {DATA_PATH})")
     httpd.serve_forever()

@@ -28,6 +28,7 @@
   <button data-tab="routes" class="tab">🚗 路线复现</button>
   <button data-tab="rollouts" class="tab">🧪 分组试运行</button>
   <button data-tab="mirror" class="tab">📦 镜像分发</button>
+  <button data-tab="preheat" class="tab">🔥 预热编排</button>
   <button data-tab="audit" class="tab">⚖ 时序审计</button>
   <span class="spacer"></span>
   <button id="refreshBtn" class="ghost">↻ 刷新</button>
@@ -210,6 +211,64 @@
       <div class="panel">
         <h2>镜像仓库事件（append-only）</h2>
         <div id="mirrorEvents" class="events" style="max-height:420px"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ===================== PREHEAT ===================== -->
+  <section id="tab-preheat" class="tabpane">
+    <div class="audit-banner">
+      <b>🔥 面向大量路侧盒的容量感知预热编排。</b>
+      为一批目标盒设定<strong>截止时间 / 链路速率上限 / 最小在线保障</strong>，
+      按<strong>站点共享带宽、盒内可用空间、内容复用率</strong>安排传输；
+      最小保障 + 赤字轮询（DRR）保证持续推进的作业不被长期饿死。
+      磁盘预留与传输名额<strong>成对取得/释放</strong>——空间不足、链路降级、盒子离线、
+      取消作业或服务崩溃都不留下幽灵占用；暂停/崩溃恢复只补<strong>剩余字节</strong>。
+      本页与 <code>preheat_cli.py</code> 读写同一数据源（data/preheat.json，独立隔离），
+      排队次序 / 限速原因 / 预计完成时间完全一致，绝不影响已生效地图与行程快照。
+    </div>
+    <div class="preheat-top">
+      <div class="clock-box">
+        虚拟时钟 <b id="phClock">t=0s</b>
+        <span class="hint">（后台每秒推进 1 tick；也可手动推进）</span>
+        <button id="phTickBtn" class="ghost">▶ 推进 1s</button>
+        <button id="phTick10Btn" class="ghost">⏩ 推进 10s</button>
+      </div>
+      <div id="phSites" class="ph-sites"></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>① 提交预热批次 <span class="hint">截止 / 速率上限 / 最小在线保障</span></h2>
+        <label>目标盒（逗号分隔）
+          <input id="phTargets" value="RSU-N1,RSU-N2,RSU-N3"/></label>
+        <label>内容对象（逗号分隔）
+          <input id="phBlobs" value="BL-MAP-MEDIA,BL-MAP-LANE,BL-MAP-POI"/></label>
+        <div class="ph-row">
+          <label>截止（秒，留空不限）<input id="phDeadline" type="number" value="40" min="1"/></label>
+          <label>速率上限 B/s（留空不限）<input id="phRateCap" type="number" value="15728640" min="1"/></label>
+        </div>
+        <div class="ph-row">
+          <label>最小在线保障 B/s<input id="phMinOnline" type="number" value="2097152" min="0"/></label>
+          <label>DRR 权重<input id="phWeight" type="number" value="1" min="1"/></label>
+        </div>
+        <label>作业名称<input id="phName" value="晚高峰预热"/></label>
+        <label>幂等键（相同请求重试返回首次结果，可留空）
+          <input id="phKey" placeholder="如 dispatch-20261005-01"/></label>
+        <button id="phSubmitBtn" class="primary">提交批次（整批原子准入，空间不足全拒）</button>
+        <div id="phSubmitResult" class="report" style="margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <h2>② 路侧盒容量 <span class="hint">已用 / 预留 / 容量 · 链路状态</span></h2>
+        <div id="phBoxes" class="cardlist" style="max-height:520px"></div>
+      </div>
+    </div>
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>③ 全局排队次序 <span class="hint">与 CLI 同源：次序 / 限速原因 / ETA</span></h2>
+        <div id="phQueue" class="ph-queue"></div>
+      </div>
+      <div class="panel">
+        <h2>编排事件（append-only）</h2>
+        <div id="phEvents" class="events" style="max-height:460px"></div>
       </div>
     </div>
   </section>
