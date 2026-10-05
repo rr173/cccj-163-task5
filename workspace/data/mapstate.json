@@ -1,0 +1,860 @@
+{
+  "tiles": {
+    "sha256:d3204f766864b6607a2c330342b9801c50454c74f1b90f23b4b5ec8afac2f45b": {
+      "tile_id": "A00",
+      "region": "north",
+      "version_tag": "v1",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 300,
+          "y": 300
+        },
+        {
+          "node_id": "w",
+          "x": 0,
+          "y": 300
+        },
+        {
+          "node_id": "e",
+          "x": 600,
+          "y": 300
+        },
+        {
+          "node_id": "n",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "node_id": "s",
+          "x": 300,
+          "y": 600
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lcw",
+          "from": "c",
+          "to": "w",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        }
+      ],
+      "bounds": [
+        0,
+        0,
+        600,
+        600
+      ],
+      "ports": [
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 0,
+          "y": 300,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 300,
+          "y": 0,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 600,
+          "y": 300,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A01",
+            "port": "pw"
+          }
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 300,
+          "y": 600,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B00",
+            "port": "pn"
+          }
+        }
+      ]
+    },
+    "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372": {
+      "tile_id": "A01",
+      "region": "north",
+      "version_tag": "v1",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 900,
+          "y": 300
+        },
+        {
+          "node_id": "w",
+          "x": 600,
+          "y": 300
+        },
+        {
+          "node_id": "e",
+          "x": 1200,
+          "y": 300
+        },
+        {
+          "node_id": "n",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "node_id": "s",
+          "x": 900,
+          "y": 600
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lcw",
+          "from": "c",
+          "to": "w",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        }
+      ],
+      "bounds": [
+        600,
+        0,
+        1200,
+        600
+      ],
+      "ports": [
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 600,
+          "y": 300,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A00",
+            "port": "pe"
+          }
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 1200,
+          "y": 300,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 900,
+          "y": 0,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 900,
+          "y": 600,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B01",
+            "port": "pn"
+          }
+        }
+      ]
+    },
+    "sha256:228b9c65da21e70affca98113d2572f6594e47e9081b7ca57c05eeec28c7ee17": {
+      "tile_id": "B00",
+      "region": "south",
+      "version_tag": "v1",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 300,
+          "y": 900
+        },
+        {
+          "node_id": "w",
+          "x": 0,
+          "y": 900
+        },
+        {
+          "node_id": "e",
+          "x": 600,
+          "y": 900
+        },
+        {
+          "node_id": "n",
+          "x": 300,
+          "y": 600
+        },
+        {
+          "node_id": "s",
+          "x": 300,
+          "y": 1200
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lcw",
+          "from": "c",
+          "to": "w",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        }
+      ],
+      "bounds": [
+        0,
+        600,
+        600,
+        1200
+      ],
+      "ports": [
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 300,
+          "y": 600,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A00",
+            "port": "ps"
+          }
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 300,
+          "y": 1200,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 0,
+          "y": 900,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 600,
+          "y": 900,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B01",
+            "port": "pw"
+          }
+        }
+      ]
+    },
+    "sha256:01deaf5cf81d30d695d7e0725869c41eee2ec396aed50ef3c700dd4f7b9fbd5f": {
+      "tile_id": "B01",
+      "region": "south",
+      "version_tag": "v1",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 900,
+          "y": 900
+        },
+        {
+          "node_id": "w",
+          "x": 600,
+          "y": 900
+        },
+        {
+          "node_id": "e",
+          "x": 1200,
+          "y": 900
+        },
+        {
+          "node_id": "n",
+          "x": 900,
+          "y": 600
+        },
+        {
+          "node_id": "s",
+          "x": 900,
+          "y": 1200
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lcw",
+          "from": "c",
+          "to": "w",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        }
+      ],
+      "bounds": [
+        600,
+        600,
+        1200,
+        1200
+      ],
+      "ports": [
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 900,
+          "y": 600,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A01",
+            "port": "ps"
+          }
+        },
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 600,
+          "y": 900,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B00",
+            "port": "pe"
+          }
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 1200,
+          "y": 900,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 900,
+          "y": 1200,
+          "external": true,
+          "peer": null
+        }
+      ]
+    },
+    "sha256:9492083f2d659a5707194f6818f0e6a9e4c27c0c488c94592fcc482adacb57bc": {
+      "tile_id": "A00",
+      "region": "north",
+      "version_tag": "v2",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 300,
+          "y": 300
+        },
+        {
+          "node_id": "w",
+          "x": 0,
+          "y": 300
+        },
+        {
+          "node_id": "e",
+          "x": 600,
+          "y": 300
+        },
+        {
+          "node_id": "n",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "node_id": "s",
+          "x": 300,
+          "y": 600
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lcw",
+          "from": "c",
+          "to": "w",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcne",
+          "from": "n",
+          "to": "e",
+          "two_way": true,
+          "speed": 50
+        }
+      ],
+      "bounds": [
+        0,
+        0,
+        600,
+        600
+      ],
+      "ports": [
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 0,
+          "y": 300,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 300,
+          "y": 0,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 600,
+          "y": 300,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A01",
+            "port": "pw"
+          }
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 300,
+          "y": 600,
+          "profile": {
+            "speed": 60,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B00",
+            "port": "pn"
+          }
+        }
+      ]
+    },
+    "sha256:a014389715a35b4b569c2b85aa8ee73eeeab4027d596af373f36e893e5d9064e": {
+      "tile_id": "A00",
+      "region": "north",
+      "version_tag": "v3-bad",
+      "nodes": [
+        {
+          "node_id": "c",
+          "x": 300,
+          "y": 300
+        },
+        {
+          "node_id": "w",
+          "x": 0,
+          "y": 300
+        },
+        {
+          "node_id": "e",
+          "x": 600,
+          "y": 300
+        },
+        {
+          "node_id": "n",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "node_id": "s",
+          "x": 300,
+          "y": 600
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": "lce",
+          "from": "c",
+          "to": "e",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcn",
+          "from": "c",
+          "to": "n",
+          "two_way": true,
+          "speed": 60
+        },
+        {
+          "lane_id": "lcs",
+          "from": "c",
+          "to": "s",
+          "two_way": true,
+          "speed": 60
+        }
+      ],
+      "bounds": [
+        0,
+        0,
+        600,
+        600
+      ],
+      "ports": [
+        {
+          "port_id": "pw",
+          "node": "w",
+          "side": "west",
+          "x": 0,
+          "y": 300,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pn",
+          "node": "n",
+          "side": "north",
+          "x": 300,
+          "y": 0,
+          "external": true,
+          "peer": null
+        },
+        {
+          "port_id": "pe",
+          "node": "e",
+          "side": "east",
+          "x": 600,
+          "y": 300,
+          "profile": {
+            "speed": 80,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "A01",
+            "port": "pw"
+          }
+        },
+        {
+          "port_id": "ps",
+          "node": "s",
+          "side": "south",
+          "x": 300,
+          "y": 600,
+          "profile": {
+            "speed": 80,
+            "lanes": 2
+          },
+          "peer": {
+            "tile": "B00",
+            "port": "pn"
+          }
+        }
+      ]
+    }
+  },
+  "candidates": {
+    "RC-0001": {
+      "candidate_id": "RC-0001",
+      "regions": [
+        "north",
+        "south"
+      ],
+      "tiles": {
+        "A00": "sha256:d3204f766864b6607a2c330342b9801c50454c74f1b90f23b4b5ec8afac2f45b",
+        "A01": "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372",
+        "B00": "sha256:228b9c65da21e70affca98113d2572f6594e47e9081b7ca57c05eeec28c7ee17",
+        "B01": "sha256:01deaf5cf81d30d695d7e0725869c41eee2ec396aed50ef3c700dd4f7b9fbd5f"
+      },
+      "note": "初始地图（四区瓦，南北两个发布区域）",
+      "created_by": "system",
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "based_on_generations": {
+        "north": 0,
+        "south": 0
+      },
+      "status": "published",
+      "validation": {
+        "status": "passed",
+        "errors": [],
+        "warnings": [],
+        "checked_at": "2026-10-05T00:57:38+00:00",
+        "baseline_generations": {
+          "north": 0,
+          "south": 0
+        }
+      },
+      "published_as": "REL-0001"
+    },
+    "RC-0002": {
+      "candidate_id": "RC-0002",
+      "regions": [
+        "north"
+      ],
+      "tiles": {
+        "A00": "sha256:9492083f2d659a5707194f6818f0e6a9e4c27c0c488c94592fcc482adacb57bc",
+        "A01": "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372"
+      },
+      "note": "北区内部新增 n-e 联络车道（边界拓扑不变，应通过校验）",
+      "created_by": "editor",
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "based_on_generations": {
+        "north": 1
+      },
+      "status": "draft",
+      "validation": null
+    },
+    "RC-0003": {
+      "candidate_id": "RC-0003",
+      "regions": [
+        "north"
+      ],
+      "tiles": {
+        "A00": "sha256:a014389715a35b4b569c2b85aa8ee73eeeab4027d596af373f36e893e5d9064e",
+        "A01": "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372"
+      },
+      "note": "北区改稿：南端口限速改 80 且删除西入口车道（接缝限速+跨区走廊必失败）",
+      "created_by": "editor",
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "based_on_generations": {
+        "north": 1
+      },
+      "status": "draft",
+      "validation": null
+    }
+  },
+  "releases": [
+    {
+      "release_id": "REL-0001",
+      "candidate_id": "RC-0001",
+      "regions": [
+        "north",
+        "south"
+      ],
+      "generations": {
+        "north": 1,
+        "south": 1
+      },
+      "tiles": {
+        "A00": "sha256:d3204f766864b6607a2c330342b9801c50454c74f1b90f23b4b5ec8afac2f45b",
+        "A01": "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372",
+        "B00": "sha256:228b9c65da21e70affca98113d2572f6594e47e9081b7ca57c05eeec28c7ee17",
+        "B01": "sha256:01deaf5cf81d30d695d7e0725869c41eee2ec396aed50ef3c700dd4f7b9fbd5f"
+      },
+      "parent_releases": {
+        "north": null,
+        "south": null
+      },
+      "note": "初始发布",
+      "created_at": "2026-10-05T00:57:38+00:00"
+    }
+  ],
+  "region_heads": {
+    "north": "REL-0001",
+    "south": "REL-0001"
+  },
+  "region_gen": {
+    "north": 1,
+    "south": 1
+  },
+  "patches": {},
+  "snapshots": {},
+  "vehicles": {
+    "VH-01": {
+      "snapshots": [],
+      "last_event_id": 0
+    }
+  },
+  "corridors": [
+    {
+      "corridor_id": "C1",
+      "name": "西入口→东出口（跨南北区）",
+      "waypoints": [
+        "A00/w",
+        "B01/e"
+      ]
+    },
+    {
+      "corridor_id": "C2",
+      "name": "北入口→南出口（跨东西瓦）",
+      "waypoints": [
+        "A01/n",
+        "B00/s"
+      ]
+    }
+  ],
+  "rollouts": {},
+  "events": [
+    {
+      "event_id": 1,
+      "ts": "2026-10-05T00:57:38+00:00",
+      "type": "SYSTEM_SEEDED",
+      "summary": "初始地图与示例候选已生成",
+      "ref": "REL-0001"
+    }
+  ],
+  "seq": {
+    "candidate": 3,
+    "release": 1,
+    "patch": 0,
+    "snapshot": 0,
+    "event": 1,
+    "rollout": 0
+  }
+}

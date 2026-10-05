@@ -28,6 +28,7 @@
   <button data-tab="routes" class="tab">🚗 路线复现</button>
   <button data-tab="rollouts" class="tab">🧪 分组试运行</button>
   <button data-tab="mirror" class="tab">📦 镜像分发</button>
+  <button data-tab="preheat" class="tab">🔥 预热编排</button>
   <button data-tab="audit" class="tab">⚖ 时序审计</button>
   <span class="spacer"></span>
   <button id="refreshBtn" class="ghost">↻ 刷新</button>
@@ -210,6 +211,72 @@
       <div class="panel">
         <h2>镜像仓库事件（append-only）</h2>
         <div id="mirrorEvents" class="events" style="max-height:420px"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ===================== PREHEAT ===================== -->
+  <section id="tab-preheat" class="tabpane">
+    <div class="audit-banner">
+      <b>🔥 面向大量路侧盒的容量感知预热编排。</b>
+      调度员按<strong>截止时间 · 链路速率上限 · 最小在线保障</strong>提交一批目标盒；
+      调度器按<strong>站点共享带宽 · 盒内可用空间 · 内容复用率</strong>安排传输，
+      磁盘预留与传输名额<strong>成对取得/释放</strong>，欠账机制保证持续推进的作业不被饿死，
+      暂停恢复只补剩余数据。空间不足、链路降级、盒子离线、取消或服务崩溃都不留幽灵占用，
+      重启后重建队列/欠账/剩余时长。本页与 <code>preheat_cli.py</code> 读写同一数据源
+      （data/preheat.json），排队次序、限速原因与预计完成时间完全一致；编排只读线上，
+      绝不影响已生效地图与行程快照。
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>① 站点共享带宽与盒子容量</h2>
+        <div class="routeform">
+          <label>站点 <input id="phSiteId" value="SITE-A"/></label>
+          <label>共享带宽 KB/s <input id="phSiteCap" type="number" min="0.1" step="0.1" value="2"/></label>
+          <button id="phSiteBtn" class="ghost">注册/调整站点配额</button>
+        </div>
+        <div class="routeform">
+          <label>盒子 <input id="phBoxId" value="RSU-01"/></label>
+          <label>所属站点 <input id="phBoxSite" value="SITE-A"/></label>
+          <label>磁盘 MB <input id="phBoxDisk" type="number" min="0.001" step="0.001" value="50"/></label>
+          <label>链路 KB/s <input id="phBoxLink" type="number" min="0" step="0.1" value="1"/></label>
+          <button id="phBoxBtn" class="ghost">注册/更新盒子</button>
+        </div>
+        <div id="phSites" class="cardlist" style="max-height:200px"></div>
+        <div id="phBoxes" class="cardlist" style="max-height:260px"></div>
+      </div>
+      <div class="panel">
+        <h2>② 提交预热作业 <span class="hint">截止 · 速率上限 · 最小在线保障</span></h2>
+        <label>内容清单（镜像仓库中的不可变清单）
+          <select id="phManifest"></select>
+        </label>
+        <label>目标盒（逗号分隔）
+          <input id="phTargets" value="RSU-01,RSU-02"/>
+        </label>
+        <div class="routeform">
+          <label>截止（秒后） <input id="phDeadline" type="number" min="1" value="120"/></label>
+          <label>链路速率上限 KB/s <input id="phLinkCap" type="number" min="0.1" step="0.1" value="0.8"/></label>
+          <label>最小在线保障（台） <input id="phMinOnline" type="number" min="1" value="2"/></label>
+        </div>
+        <label>备注 <input id="phNote" placeholder="如：晚高峰前预热"/></label>
+        <button id="phSubmitBtn" class="primary">提交作业（重复提交返回首次结果）</button>
+        <div id="phSubmitResult" class="report" style="margin-top:8px"></div>
+        <h2 style="margin-top:14px">作业 <span class="hint">暂停/恢复/取消均为确定结果</span></h2>
+        <div id="phJobs" class="cardlist" style="max-height:300px"></div>
+      </div>
+    </div>
+    <div class="grid2 wide-left">
+      <div class="panel">
+        <h2>③ 调度队列 <span class="hint">次序 · 限速原因 · 预计完成（与 CLI 同源）</span>
+          <span class="spacer"></span>
+          <button id="phTick1" class="ghost">⏱ 推进 1s</button>
+          <button id="phTick5" class="ghost">⏱ 推进 5s</button>
+        </h2>
+        <div id="phClock" class="hint" style="margin-bottom:6px"></div>
+        <div id="phQueue" class="cardlist" style="max-height:420px"></div>
+      </div>
+      <div class="panel">
+        <h2>编排事件（append-only）</h2>
+        <div id="phEvents" class="events" style="max-height:420px"></div>
       </div>
     </div>
   </section>

@@ -48,6 +48,20 @@ Regulatory audit (read-only over live state; appends only to data/audit.json):
   GET  /api/audit/branches/{id}
   GET|POST /api/audit/exports
   GET  /api/audit/archives
+
+Capacity-aware preheat orchestration (read-only over live+mirror; own store
+data/preheat.json):
+  GET  /api/preheat/sites           POST /api/preheat/sites     (register/resize site)
+  POST /api/preheat/sites/{id}/capacity                         (deterministic quota change)
+  GET  /api/preheat/boxes           POST /api/preheat/boxes     (register box)
+  POST /api/preheat/boxes/{id}/link        (link degrade/restore)
+  POST /api/preheat/boxes/{id}/online      {online: true|false}
+  GET  /api/preheat/jobs            POST /api/preheat/jobs      (submit; replay-first)
+  GET  /api/preheat/jobs/{id}
+  POST /api/preheat/jobs/{id}/pause  /resume  /cancel           (cancel: verdict-once)
+  GET  /api/preheat/queue           (order / limit reasons / ETA — same as CLI)
+  POST /api/preheat/tick            {seconds}  (advance the simulated clock)
+  GET  /api/preheat/events
 Static UI served at /
 """
 
@@ -63,17 +77,21 @@ from urllib.parse import urlparse, parse_qs
 from engine import DomainError, MapEngine, short
 from audit import AuditEngine
 from mirror import MirrorEngine
+from preheat import PreheatEngine
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mapstate.json")
 AUDIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "audit.json")
 MIRROR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "mirror.json")
+PREHEAT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "preheat.json")
 
 ENGINE = MapEngine(DATA_PATH)
 # audit subsystem: separate append-only store; ENGINE is only ever read by it
 AUDIT = AuditEngine(AUDIT_PATH, ENGINE)
 # mirror subsystem: roadside-box image distribution; ENGINE is only ever read
 MIRROR = MirrorEngine(MIRROR_PATH, ENGINE)
+# preheat orchestration: reads live+mirror read-only, writes only its own store
+PREHEAT = PreheatEngine(PREHEAT_PATH, MIRROR)
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -228,6 +246,43 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(MIRROR.run_agent(
                 m.group(1), body.get("stop_after"), body.get("corrupt_chunk")))
 
+        # --------- capacity-aware preheat orchestration (read-only over live)
+        if path == "/api/preheat/sites":
+            return self._send_json(PREHEAT.upsert_site(
+                body.get("site_id", ""), body.get("capacity_kbps")), 201)
+        m = re.match(r"^/api/preheat/sites/([^/]+)/capacity$", path)
+        if m:
+            return self._send_json(PREHEAT.set_site_capacity(
+                m.group(1), body.get("capacity_kbps")))
+        if path == "/api/preheat/boxes":
+            return self._send_json(PREHEAT.upsert_box(
+                body.get("box_id", ""), body.get("site_id", ""),
+                body.get("disk_total_mb", 0), body.get("link_cap_kbps", 0),
+                body.get("disk_used_mb", 0)), 201)
+        m = re.match(r"^/api/preheat/boxes/([^/]+)/link$", path)
+        if m:
+            return self._send_json(PREHEAT.set_box_link(
+                m.group(1), body.get("link_cap_kbps")))
+        m = re.match(r"^/api/preheat/boxes/([^/]+)/online$", path)
+        if m:
+            return self._send_json(PREHEAT.set_box_online(
+                m.group(1), bool(body.get("online"))))
+        if path == "/api/preheat/jobs":
+            r = PREHEAT.create_job(body)
+            # identical re-submission replays the first job
+            return self._send_json(r, 200 if r.get("idempotent") else 201)
+        m = re.match(r"^/api/preheat/jobs/([^/]+)/(pause|resume|cancel)$", path)
+        if m:
+            jid, action = m.group(1), m.group(2)
+            if action == "pause":
+                return self._send_json(PREHEAT.pause_job(jid))
+            if action == "resume":
+                return self._send_json(PREHEAT.resume_job(jid))
+            r = PREHEAT.cancel_job(jid, body.get("by", "dispatcher"))
+            return self._send_json(r, 200 if r.get("idempotent") else 201)
+        if path == "/api/preheat/tick":
+            return self._send_json(PREHEAT.tick(body.get("seconds", 1)))
+
         table = {
             "/api/candidates": lambda: self._send_json(ENGINE.list_candidates()),
             "/api/patches": lambda: self._send_json(ENGINE.create_patch(body)),
@@ -306,6 +361,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(MIRROR.get_device(m.group(1)))
         if path == "/api/mirror/events":
             return self._send_json({"events": MIRROR.list_events(
+                int(q.get("limit", ["80"])[0]))})
+
+        # --------- capacity-aware preheat orchestration (same store as CLI) --
+        if path == "/api/preheat/sites":
+            return self._send_json({"sites": PREHEAT.list_sites()})
+        if path == "/api/preheat/boxes":
+            return self._send_json({"boxes": PREHEAT.list_boxes()})
+        if path == "/api/preheat/jobs":
+            return self._send_json({"jobs": PREHEAT.list_jobs()})
+        m = re.match(r"^/api/preheat/jobs/([^/]+)$", path)
+        if m:
+            return self._send_json(PREHEAT.get_job(m.group(1)))
+        if path == "/api/preheat/queue":
+            return self._send_json(PREHEAT.queue())
+        if path == "/api/preheat/events":
+            return self._send_json({"events": PREHEAT.list_events(
                 int(q.get("limit", ["80"])[0]))})
 
         table = {

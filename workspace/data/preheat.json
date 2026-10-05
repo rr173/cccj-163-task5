@@ -1,0 +1,110 @@
+{
+  "clock": "2026-10-05T00:57:40+00:00",
+  "sites": {
+    "SITE-A": {
+      "site_id": "SITE-A",
+      "capacity_kbps": 1.6,
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "updated_at": "2026-10-05T00:57:38+00:00"
+    }
+  },
+  "boxes": {
+    "RSU-01": {
+      "box_id": "RSU-01",
+      "site_id": "SITE-A",
+      "disk_total_bytes": 50000000.0,
+      "disk_used_bytes": 0.0,
+      "link_cap_kbps": 0.8,
+      "online": true,
+      "inventory": [],
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "updated_at": "2026-10-05T00:57:38+00:00"
+    }
+  },
+  "jobs": {
+    "PJ-0001": {
+      "job_id": "PJ-0001",
+      "seq": 1,
+      "job_key": "sha256:ce9bb8b36bcff7116a58f53bc2a871a0d96d2b45ee16f1e94decbbd6764c401a",
+      "manifest_id": "MF-0001",
+      "manifest_hash": "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600",
+      "version": "north=1/south=1",
+      "targets": [
+        "RSU-01"
+      ],
+      "deadline": "2026-10-05T00:58:38+00:00",
+      "link_cap_kbps": 0.8,
+      "min_online": 1,
+      "note": "",
+      "status": "active",
+      "cancel_result": null,
+      "created_by": "dispatcher",
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "updated_at": "2026-10-05T00:57:38+00:00",
+      "tasks": [
+        "PT-0001"
+      ]
+    }
+  },
+  "job_by_key": {
+    "sha256:ce9bb8b36bcff7116a58f53bc2a871a0d96d2b45ee16f1e94decbbd6764c401a": "PJ-0001"
+  },
+  "tasks": {
+    "PT-0001": {
+      "task_id": "PT-0001",
+      "seq": 1,
+      "job_id": "PJ-0001",
+      "box_id": "RSU-01",
+      "site_id": "SITE-A",
+      "status": "transferring",
+      "bytes_total": 1630.0,
+      "bytes_done": 1600.0,
+      "reserved_bytes": 30.0,
+      "debt_kb": 0.0,
+      "reuse_ratio": 0.0,
+      "journal": [
+        {
+          "ts": "2026-10-05T00:57:38+00:00",
+          "event": "TASK_QUEUED",
+          "detail": "作业 PJ-0001 下发：需传输 1630/1630 字节（内容复用率 0%）"
+        },
+        {
+          "ts": "2026-10-05T00:57:38+00:00",
+          "event": "PAIR_ACQUIRED",
+          "detail": "成对取得磁盘预留 1630 字节 + 传输名额（0.8 KB/s，受作业速率上限限制）"
+        }
+      ],
+      "created_at": "2026-10-05T00:57:38+00:00",
+      "updated_at": "2026-10-05T00:57:40+00:00",
+      "done_at": null
+    }
+  },
+  "events": [
+    {
+      "event_id": 1,
+      "ts": "2026-10-05T00:57:38+00:00",
+      "type": "SITE_REGISTERED",
+      "summary": "注册站点 SITE-A（共享带宽 1.6 KB/s）",
+      "ref": "SITE-A"
+    },
+    {
+      "event_id": 2,
+      "ts": "2026-10-05T00:57:38+00:00",
+      "type": "BOX_REGISTERED",
+      "summary": "注册盒子 RSU-01 @ SITE-A（磁盘 50 MB，链路 0.8 KB/s，库存对象 0 个）",
+      "ref": "RSU-01"
+    },
+    {
+      "event_id": 3,
+      "ts": "2026-10-05T00:57:38+00:00",
+      "type": "JOB_SUBMITTED",
+      "summary": "预热作业 PJ-0001：清单 MF-0001（north=1/south=1）→ 1 台盒子，截止 2026-10-05T00:58:38+00:00，链路 ≤0.8 KB/s，最小在线保障 1/1",
+      "ref": "PJ-0001"
+    }
+  ],
+  "seq": {
+    "job": 1,
+    "task": 1,
+    "event": 3
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "manifests": {
+    "MF-0001": {
+      "source": {
+        "kind": "effective",
+        "ref": null,
+        "version": "north=1/south=1"
+      },
+      "generations": {
+        "north": 1,
+        "south": 1
+      },
+      "objects": [
+        {
+          "object_id": "descriptor",
+          "kind": "descriptor",
+          "hash": "sha256:d788a50fb3396d470272166da28f9faf6ecb484f50789d005c4317aeb84709dc"
+        },
+        {
+          "object_id": "tile:A00",
+          "kind": "tile",
+          "hash": "sha256:d3204f766864b6607a2c330342b9801c50454c74f1b90f23b4b5ec8afac2f45b"
+        },
+        {
+          "object_id": "tile:A01",
+          "kind": "tile",
+          "hash": "sha256:406900a37cc808cc39ce1df6c60d27c5bf581bf6a10f5e56f1ee3a818c079372"
+        },
+        {
+          "object_id": "tile:B00",
+          "kind": "tile",
+          "hash": "sha256:228b9c65da21e70affca98113d2572f6594e47e9081b7ca57c05eeec28c7ee17"
+        },
+        {
+          "object_id": "tile:B01",
+          "kind": "tile",
+          "hash": "sha256:01deaf5cf81d30d695d7e0725869c41eee2ec396aed50ef3c700dd4f7b9fbd5f"
+        }
+      ],
+      "chunks": [
+        {
+          "index": 0,
+          "hash": "sha256:451ca8b1c85ff9a8264e36b2b2cf56070101872da37d18fb7aaab5c035ed1f39",
+          "size": 676,
+          "objects": [
+            "descriptor",
+            "tile:A00"
+          ]
+        },
+        {
+          "index": 1,
+          "hash": "sha256:c85c7c3ad5a68ba8a0e2ce03f79a108e2741a7813d1020978e115e73a8abdfca",
+          "size": 559,
+          "objects": [
+            "tile:A01",
+            "tile:B00"
+          ]
+        },
+        {
+          "index": 2,
+          "hash": "sha256:06370f98eed59e166df4ed619f286f82b5f9fc655692efde727bfb5d75ef6345",
+          "size": 395,
+          "objects": [
+            "tile:B01"
+          ]
+        }
+      ],
+      "root_hash": "sha256:dcf6cbba35dbda5746a21a20b7f375bb9ef847249d938aea121db64cbe0bc3f8",
+      "devices": [
+        "RSU-09"
+      ],
+      "note": "",
+      "manifest_id": "MF-0001",
+      "manifest_hash": "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600",
+      "seq": 1,
+      "created_by": "publisher",
+      "created_at": "2026-10-05T00:57:39+00:00"
+    }
+  },
+  "manifest_by_hash": {
+    "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600": "MF-0001"
+  },
+  "chunk_store": {
+    "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600:0": {
+      "hash": "sha256:451ca8b1c85ff9a8264e36b2b2cf56070101872da37d18fb7aaab5c035ed1f39",
+      "data_b64": "eNqlVE1v2zAM/S86exgl68sGeuiA3XbadSgKWaKabJ4c2E7TIsh/H2WlbbIlh2CHwJKo9/hEMm/P1ingC2uhYkP3E/08sfbHnvkhzZhm1u5Z5ybM3zSM8yovnjDh6Ob1kFjLKzZij3TlcR1Yy75//fYJADg7VGwatrcACDE849i7V5Kwp93GzX6FWc9DxeZ1n5d7dg9AsGnlhNJtqAXIaLS2WnZag3HC1zXUUnSNBe4VSCW9kZF3DURRd7JT6K2LzosoVccq4uMffBJ0A+Bq470F633deOQhaq8hCONVF5XlXdSOQ1SodOSItbPcejBNbQTxfTnVJ4TtGq9VcIKjARejd43lvA5CGRG1aiRKgw0Qq/FOGQ8KEb2w3iBys/Cd6AMe0EXlo+WhhqAbFQyCEcrqxksSgwJJtHYYFGCsvQEIgSrUNbELKua2UI2npRWlo3f889Kou6VnKzetTsprrHUKYlcTZ5AGhBFca3qNjU10UaPvpJVRgbFNAFBe1tw47CzdbYIn+b9ovogw4OTH9WYeRvY2aKX/J4FDdT53wzaF3H2ooNKw/GgQepewzGgch9/EkLPkw8LX+x3tpw0i7TRN9TzQaT6bd8Pjzr2ydh63mHNdweMFPN6ATxfw6Qb8dAE//YOnSqQhHCuRVwWeyejfXFO52OvyzZk+4rsSvxLFEtXX0Omc/a/odB4llqxyQ0NWVOLLjGNyfXlB0X+URM8dWZu2fV8AhXCztHJdbuE0X9B+hTNd50wfnMXRLj/pWI1Csl8I3hRlK6L1fXG5E+oFMA5xie/fJlWctPPwnpsccL5a7WMx/06ePpJnlzlPPt2QvDjzpW6N+HTiDcd8JUM23nf3eJzdE509XzKN//fko2ksbz23i3zUZiWHh8MfmSL+1Q=="
+    },
+    "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600:1": {
+      "hash": "sha256:c85c7c3ad5a68ba8a0e2ce03f79a108e2741a7813d1020978e115e73a8abdfca",
+      "data_b64": "eNrtVE1zozAM/S8+c7BNsYFb+jd2OhnHiCa7rJ3BpHQnk/++Mg7LR3G3ufeQCZasJ+nJeldyMhW8k5IlxB5+gu4cKX9cibamA9OR8koO9mIqbxWUJjRhHP/w8yUhjTIQrtet/U1Kokkw7k8Vnhrd49mdAfAkaEI6i1Zv63q779UfUnbtBW5JNB424uGBeLMRbx6Idxvx7kM8MmFsdWfCf4VwD4bEFkgXwasppT7T5O+DX8T8EPwD35sXzDLByuuWXkzjCz3btpsKvVeBHbZ+0t6JpvNA8anx7h2l5BbCAux5CGhtPfiv4xvgM6LwvjsFcHDdZpfw3kFrVBMYTMZi4F8x5tI0i7TDUwiooEbUNTcRWBOHNROsQesxQumdzzVRZiLqmbIVUe4Bopy9rHPfB9bC68maWXk+X8iww5QJeYPW4Y19p17R9jZUcVTu6FGPimeifKICQVUqtc5prnVaaGBVLbSgFZc6O9RZzg61UIzWGWSiZgCpylmuqSxSyTHJL1QJBBx6HYUiFOFN5W5ofls1BrEYfn5a36rxNdVI76+giKhGxAvLbSsikpHO3tiWaIx+P7FN1TAby+A+Uw3zwDLMFnFVaGS/XXy/HdnasUV/cdw+jtuTDZH7QPpC0iam+s9kAx5galLC+cTnqjE2PanGM87mK6rBeX4otMgqxRlIqupaqyJnLK14JnktsuIJniQUFLVDapVJTTMA0DzXEoDJ/6uGr+T2cvsL342Jtg=="
+    },
+    "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600:2": {
+      "hash": "sha256:06370f98eed59e166df4ed619f286f82b5f9fc655692efde727bfb5d75ef6345",
+      "data_b64": "eNqVVMtugzAQ/BefORgSIHBrfqOKImMvCS21ETYhEeLfu8ZQEgqHHHh4Z2d2PWu5I4UUcCdp4BGVfQE3mqSfHeFKGpCGpB3JVCOFjUaUevbxg/F18kjJJDhGXqsfkhJOXPBcCFyVvMW1rgBwFVGPGIVRGzOtOrfsQVJTN9B7m3xY4cMbfLnCl2/w9Qpf/+OjE1KJ0Qn75+hWDL1N0C/yGL620oy3Do+2cHD4YPhqgnwtEC1x/YpbIdtrpWoz9zrq4CZrO28LYqgadlmUFv6gPukdzelWA6FW+YB30zEInrzCfF04caRdNxsdbVhWh7n6kdJF9faN6i1os2oz3A3UkpVuhN7UDPw1I5uyfCk7nEWnCmxSXQ5nQ1Zvy+pZVqtmadU0sxouhZJPOdYdp3DE8XjkBrXGjLNhF4zdholdmb5aypUFYZRSXwDLQ54ffLGjIkpCEQONg/AQJXzvA0AAfJdEDERIId/xmFIh9nmcJXkmwhyLfON1gYLDZKYbwzVhQ6ntpD/1vw80S7E="
+    }
+  },
+  "tasks": {
+    "MT-0001": {
+      "task_id": "MT-0001",
+      "manifest_id": "MF-0001",
+      "manifest_hash": "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600",
+      "device_id": "RSU-09",
+      "version": "north=1/south=1",
+      "generations": {
+        "north": 1,
+        "south": 1
+      },
+      "status": "pulling",
+      "progress": {
+        "total": 3,
+        "confirmed": 0
+      },
+      "chunks": {},
+      "staged": null,
+      "rejection": null,
+      "result": null,
+      "journal": [
+        {
+          "ts": "2026-10-05T00:57:39+00:00",
+          "event": "TASK_DISPATCHED",
+          "detail": "清单 MF-0001 已分发，待拉取 3 个压缩对象块"
+        }
+      ],
+      "created_at": "2026-10-05T00:57:39+00:00",
+      "updated_at": "2026-10-05T00:57:39+00:00"
+    }
+  },
+  "task_by_key": {
+    "sha256:dfd888c0784a82acb42d32013b54c845078126e3a70d1d2e8d0e9351e1bdb600|RSU-09": "MT-0001"
+  },
+  "devices": {
+    "RSU-09": {
+      "device_id": "RSU-09",
+      "current_image": null,
+      "pending_task_id": "MT-0001",
+      "tasks": [
+        "MT-0001"
+      ],
+      "updated_at": "2026-10-05T00:57:39+00:00"
+    }
+  },
+  "events": [
+    {
+      "event_id": 1,
+      "ts": "2026-10-05T00:57:39+00:00",
+      "type": "TASK_DISPATCHED",
+      "summary": "任务 MT-0001：清单 MF-0001（north=1/south=1）分发至盒子 RSU-09",
+      "ref": "MT-0001"
+    },
+    {
+      "event_id": 2,
+      "ts": "2026-10-05T00:57:39+00:00",
+      "type": "MANIFEST_CREATED",
+      "summary": "生成不可变清单 MF-0001（north=1/south=1，5 对象 / 3 压缩块，根散列 dcf6cbba35，设备 RSU-09）",
+      "ref": "MF-0001"
+    }
+  ],
+  "seq": {
+    "manifest": 1,
+    "task": 1,
+    "event": 2
+  }
+}

@@ -736,6 +736,223 @@ $("#mirrorPublishBtn").addEventListener("click", async () => {
   }
 });
 
+// ============================================================== preheat ====
+const PH_STATUS_CN = { queued: "排队中", transferring: "传输中", paused: "已暂停",
+  done: "已完成", canceled: "已取消" };
+const PH_JOB_CN = { active: "进行中", paused: "已暂停", completed: "已完成",
+  canceled: "已取消" };
+const PH_BADGE = { queued: "b-submitted", transferring: "b-active",
+  paused: "b-proposed", done: "b-published", canceled: "b-rejected",
+  active: "b-active", paused2: "b-proposed", completed: "b-published" };
+const fmtTs = ts => ts ? esc(ts.replace("T", " ").slice(5, 19)) : "—";
+
+async function loadPreheat() {
+  const [sites, boxes, jobs, queue, events, mans] = await Promise.all([
+    api("/preheat/sites"), api("/preheat/boxes"), api("/preheat/jobs"),
+    api("/preheat/queue"), api("/preheat/events?limit=40"),
+    api("/mirror/manifests")]);
+  state.preheat = { sites: sites.sites, boxes: boxes.boxes, jobs: jobs.jobs,
+                    queue, events: events.events, manifests: mans.manifests };
+  renderPhSites(); renderPhBoxes(); renderPhJobs(); renderPhQueue();
+  renderPhEvents(); populatePhManifest();
+}
+
+function populatePhManifest() {
+  const sel = $("#phManifest");
+  const cur = sel.value;
+  sel.innerHTML = state.preheat.manifests.map(m =>
+    `<option value="${esc(m.manifest_id)}">${esc(m.manifest_id)} · ${esc(m.source.version)}`
+    + ` · ${m.chunks} 块</option>`).join("")
+    || `<option value="">（先在 📦 镜像分发 生成清单）</option>`;
+  if (cur) sel.value = cur;
+}
+
+function renderPhSites() {
+  $("#phSites").innerHTML = state.preheat.sites.map(s => {
+    const pct = s.capacity_kbps ? Math.min(100, 100 * s.granted_kbps / s.capacity_kbps) : 0;
+    return `<div class="card" style="cursor:default">
+      <div class="row1"><span class="id">🌐 ${esc(s.site_id)}</span>
+        <span class="badge ${pct >= 100 ? "b-rejected" : "b-active"}">共享带宽</span></div>
+      <div class="pbar${pct >= 100 ? " bad" : ""}"><i style="width:${pct}%"></i></div>
+      <div class="meta">已授予 ${s.granted_kbps} / ${s.capacity_kbps} KB/s ·
+        盒子 ${s.online}/${s.boxes} 在线</div>
+    </div>`;
+  }).join("") || `<div class="hint">暂无站点</div>`;
+}
+
+function renderPhBoxes() {
+  $("#phBoxes").innerHTML = state.preheat.boxes.map(b => {
+    const usedPct = b.disk_total_bytes ? Math.min(100,
+      100 * (b.disk_used_bytes + b.reserved_bytes) / b.disk_total_bytes) : 0;
+    return `<div class="card" style="cursor:default">
+      <div class="row1"><span class="id">🖥 ${esc(b.box_id)}</span>
+        <span class="badge ${b.online ? "b-published" : "b-rejected"}">${
+          b.online ? "在线" : "离线"}</span></div>
+      <div class="meta">@${esc(b.site_id)} · 链路 ${b.link_cap_kbps} KB/s ·
+        库存对象 ${b.inventory_objects}（内容复用）</div>
+      <div class="pbar${usedPct >= 100 ? " bad" : ""}"><i style="width:${usedPct}%"></i></div>
+      <div class="meta">磁盘 已用 ${b.disk_used_mb} + 预留 ${b.reserved_mb} /
+        ${b.disk_total_mb} MB</div>
+      <div class="actions">
+        <button class="pub" data-box="${esc(b.box_id)}" data-act="degrade">📉 链路降级</button>
+        <button class="ok" data-box="${esc(b.box_id)}" data-act="restore">📈 恢复链路</button>
+        <button class="${b.online ? "danger" : "ok"}" data-box="${esc(b.box_id)}"
+          data-act="toggle">${b.online ? "⛔ 离线" : "✓ 上线"}</button>
+      </div></div>`;
+  }).join("") || `<div class="hint">暂无盒子</div>`;
+  $$("#phBoxes [data-act]").forEach(btn => btn.addEventListener("click", async () => {
+    const bid = btn.dataset.box;
+    const box = state.preheat.boxes.find(x => x.box_id === bid);
+    try {
+      if (btn.dataset.act === "degrade") {
+        await api(`/preheat/boxes/${bid}/link`, { method: "POST",
+          body: { link_cap_kbps: Math.max(0, +(box.link_cap_kbps * 0.25).toFixed(3)) } });
+        toast(`📉 ${bid} 链路降级，超出部分确定性让路`, "ok");
+      } else if (btn.dataset.act === "restore") {
+        await api(`/preheat/boxes/${bid}/link`, { method: "POST",
+          body: { link_cap_kbps: 1 } });
+        toast(`📈 ${bid} 链路已恢复`, "ok");
+      } else {
+        await api(`/preheat/boxes/${bid}/online`, { method: "POST",
+          body: { online: !box.online } });
+        toast(box.online ? `⛔ ${bid} 已离线：名额与预留成对释放` : `✓ ${bid} 已上线`, "ok");
+      }
+      await loadPreheat();
+    } catch (e) { await loadPreheat(); showError(e); }
+  }));
+}
+
+function phTaskCard(t) {
+  const pct = Math.round(100 * (t.progress || 0));
+  const barCls = t.status === "done" ? "done"
+    : t.status === "canceled" ? "bad" : "";
+  const lim = t.limit ? `<div class="meta">限速原因：<span class="err-code">[${
+    esc(t.limit.code)}]</span> ${esc(t.limit.message)}</div>` : "";
+  const eta = t.status === "done" ? `完成于 ${fmtTs(t.done_at)}`
+    : t.eta ? `预计完成 ${fmtTs(t.eta)}` : "预计完成：暂不可预计";
+  const journal = (t.journal || []).slice().reverse().map(e => `
+    <div class="jl"><span class="jt">${esc(e.ts.replace("T", " ").slice(5, 19))}</span>
+      <span class="je">${esc(e.event)}</span><span>${esc(e.detail)}</span></div>`).join("");
+  return `<div class="card" style="cursor:default">
+    <div class="row1"><span class="id">${t.rank ? "#" + t.rank + " " : ""}${esc(t.task_id)}</span>
+      <span class="badge ${PH_BADGE[t.status] || "b-draft"}">${
+        esc(PH_STATUS_CN[t.status] || t.status)}</span>
+      ${t.at_risk ? `<span class="badge b-rejected">超截止风险</span>` : ""}</div>
+    <div class="note">${esc(t.box_id)} @ ${esc(t.site_id)} · 复用率 ${
+      Math.round(100 * t.reuse_ratio)}% · 欠账 ${t.debt_kb} KB</div>
+    <div class="pbar ${barCls}"><i style="width:${pct}%"></i></div>
+    <div class="meta">${t.bytes_done}/${t.bytes_total} B · 速率 ${t.rate_kbps} KB/s ·
+      预留 ${t.reserved_bytes} B · ${eta}</div>
+    ${lim}
+    ${journal ? `<details style="margin-top:6px"><summary class="hint">处理记录（${t.journal.length}）</summary>
+      <div class="journal">${journal}</div></details>` : ""}
+  </div>`;
+}
+
+function renderPhJobs() {
+  $("#phJobs").innerHTML = state.preheat.jobs.map(j => {
+    const p = j.progress, g = j.guarantee;
+    return `<div class="card" data-jid="${esc(j.job_id)}">
+      <div class="row1"><span class="id">${esc(j.job_id)}</span>
+        <span class="badge ${PH_BADGE[j.status] || "b-draft"}">${
+          esc(PH_JOB_CN[j.status] || j.status)}</span>
+        ${g.at_risk && j.status === "active" ? `<span class="badge b-rejected">保障风险</span>` : ""}</div>
+      <div class="note">${esc(j.manifest_id)} · ${esc(j.version)} → ${j.targets.map(esc).join(",")}</div>
+      <div class="meta">截止 ${fmtTs(j.deadline)} · 链路 ≤${j.link_cap_kbps} KB/s ·
+        最小在线 ${g.done}/${g.required}（预计截止前 ${g.predicted_by_deadline}）·
+        ${p.done_bytes}/${p.total_bytes} B</div>
+      ${j.note ? `<div class="meta">${esc(j.note)}</div>` : ""}
+      <div class="actions">
+        ${j.status === "active" ? `<button class="pub" data-act="pause">⏸ 暂停</button>` : ""}
+        ${j.status === "paused" ? `<button class="ok" data-act="resume">▶ 恢复（只补剩余）</button>` : ""}
+        ${j.status === "active" || j.status === "paused"
+          ? `<button class="danger" data-act="cancel">✕ 取消（成对释放）</button>` : ""}
+      </div></div>`;
+  }).join("") || `<div class="hint">暂无作业</div>`;
+  $$("#phJobs [data-act]").forEach(btn => btn.addEventListener("click", async () => {
+    const jid = btn.closest("[data-jid]").dataset.jid;
+    try {
+      const r = await api(`/preheat/jobs/${jid}/${btn.dataset.act}`,
+                          { method: "POST", body: {} });
+      toast(r.idempotent ? `重复操作：返回首次结果（${jid}）`
+        : btn.dataset.act === "cancel" ? `✓ ${jid} 已取消，磁盘预留与传输名额成对释放`
+        : btn.dataset.act === "pause" ? `⏸ ${jid} 已暂停` : `▶ ${jid} 已恢复`, "ok");
+      await loadPreheat();
+    } catch (e) { await loadPreheat(); showError(e); }
+  }));
+}
+
+function renderPhQueue() {
+  const q = state.preheat.queue;
+  $("#phClock").textContent = `模拟时钟 ${fmtTs(q.clock)} · ` + q.sites.map(s =>
+    `${esc(s.site_id)} 已授予 ${s.granted_kbps}/${s.capacity_kbps} KB/s`).join(" · ");
+  $("#phQueue").innerHTML = q.queue.map(phTaskCard).join("")
+    || `<div class="hint">排队队列为空</div>`;
+}
+
+function renderPhEvents() {
+  $("#phEvents").innerHTML = state.preheat.events.map(e => `
+    <div class="ev"><span class="eid">#${e.event_id}</span>
+      <span class="ts">${esc(e.ts.replace("T", " ").slice(5, 19))}</span>
+      <span class="typ">${esc(e.type)}</span><span>${esc(e.summary)}</span></div>`).join("")
+    || `<div class="hint">暂无事件</div>`;
+}
+
+$("#phSiteBtn").addEventListener("click", async () => {
+  try {
+    await api("/preheat/sites", { method: "POST", body: {
+      site_id: $("#phSiteId").value.trim(),
+      capacity_kbps: Number($("#phSiteCap").value) } });
+    toast("✓ 站点配额已确定性地应用（超额按优先级抢占）", "ok");
+    await loadPreheat();
+  } catch (e) { showError(e); }
+});
+$("#phBoxBtn").addEventListener("click", async () => {
+  try {
+    await api("/preheat/boxes", { method: "POST", body: {
+      box_id: $("#phBoxId").value.trim(), site_id: $("#phBoxSite").value.trim(),
+      disk_total_mb: Number($("#phBoxDisk").value),
+      link_cap_kbps: Number($("#phBoxLink").value) } });
+    toast("✓ 盒子已注册/更新", "ok");
+    await loadPreheat();
+  } catch (e) { showError(e); }
+});
+$("#phSubmitBtn").addEventListener("click", async () => {
+  const body = {
+    manifest_id: $("#phManifest").value,
+    targets: $("#phTargets").value.split(",").map(x => x.trim()).filter(Boolean),
+    deadline_in_sec: Number($("#phDeadline").value),
+    link_cap_kbps: Number($("#phLinkCap").value),
+    min_online: Number($("#phMinOnline").value),
+    note: $("#phNote").value,
+  };
+  try {
+    const r = await api("/preheat/jobs", { method: "POST", body });
+    const j = r.job;
+    $("#phSubmitResult").innerHTML = `<div class="ok-item">✓ 作业 <b>${esc(j.job_id)}</b>
+      ${r.idempotent ? "（重复提交，返回首次作业）" : ""}：${j.targets.length} 台目标盒，
+      截止 ${fmtTs(j.deadline)}，最小在线保障 ${j.min_online} 台</div>`
+      + j.tasks.map(t => `<div class="note-item">${esc(t.task_id)} → ${esc(t.box_id)}：
+        需传 ${t.bytes_total} B（复用率 ${Math.round(100 * t.reuse_ratio)}%）</div>`).join("");
+    toast(`✓ 作业 ${j.job_id} 已提交` + (r.idempotent ? "（幂等返回首次结果）" : ""), "ok");
+    await loadPreheat();
+  } catch (e) {
+    $("#phSubmitResult").innerHTML = `<div class="err-item"><span class="err-code">[${
+      esc(e.code || "ERROR")}]</span> ${esc(e.message)}</div>`;
+    showError(e);
+  }
+});
+$("#phTick1").addEventListener("click", () => phTick(1));
+$("#phTick5").addEventListener("click", () => phTick(5));
+async function phTick(sec) {
+  try {
+    const r = await api("/preheat/tick", { method: "POST", body: { seconds: sec } });
+    toast(`⏱ 时钟推进至 ${fmtTs(r.clock)}` +
+      (r.completed.length ? `，${r.completed.length} 个任务完成` : ""), "ok");
+    await loadPreheat();
+  } catch (e) { await loadPreheat(); showError(e); }
+}
+
 // =============================================================== audit =====
 async function loadAuditImports() {
   const data = await api("/audit/imports");
@@ -1055,6 +1272,9 @@ function switchTab(name) {
   }
   if (name === "mirror") {
     loadMirror().catch(showError);
+  }
+  if (name === "preheat") {
+    loadPreheat().catch(showError);
   }
 }
 $$(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
